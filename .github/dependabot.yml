@@ -1,0 +1,41 @@
+version: 2
+# PRs target dev like every other change; Dependabot commits are exempt from the task-id commit format.
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    ignore:
+      # Major versions break APIs: upgrade them in a planned task (an ADR when it matters), never automatically.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
+      lint:
+        patterns: ["eslint", "eslint-*", "@eslint/*", "typescript-eslint", "globals"]
+      types:
+        patterns: ["@types/*"]
+      test:
+        patterns: ["jest", "ts-jest", "supertest"]
+      security:
+        patterns: ["helmet", "cors", "cookie-parser", "express-rate-limit", "rate-limit-redis", "jsonwebtoken", "bcrypt", "xss"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: dev
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: "/"
+    target-branch: dev
+    schedule:
+      interval: weekly
+    ignore:
+      # Node major follows package.json engines (an ADR), never an automatic bump.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]

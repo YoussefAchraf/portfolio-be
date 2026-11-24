@@ -1,0 +1,9 @@
+OPTIONAL MODULE: Realtime (Socket.IO). Not part of the template core.
+Add only when the project needs it (manager decision, recorded in contracts/).
+1. npm i socket.io  (frontend: socket.io-client)
+2. infrastructure/realtime/SocketServer.ts  - createSocketServer(httpServer, { corsOrigins, authenticate, logger })
+   authenticate = cookie access-token check via ITokenService (injected).
+3. infrastructure/realtime/<Domain>RealtimeGateway.ts - typed emit helpers per domain event.
+4. Wire in src/server.ts (needs the raw http server, before listen) and close it first on shutdown.
+5. rt-fe nginx/vite already proxy /socket.io.
+Lint: socket.io is allowed ONLY in this folder (eslint.config.mjs).

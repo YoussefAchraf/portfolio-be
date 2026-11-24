@@ -1,0 +1,2 @@
+Pure helper functions (<helper>.ts, camelCase, explicit return types, zero I/O).
+Unit-testable without mocks. No framework imports.

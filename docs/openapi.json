@@ -1,0 +1,257 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "et-be API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/v1",
+      "description": "Versioned API base path (same convention as contracts/openapi)"
+    }
+  ],
+  "paths": {
+    "/hello": {
+      "get": {
+        "operationId": "showHello",
+        "summary": "Boilerplate demo: greeting plus the most recent users read from the database",
+        "tags": [
+          "hello"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Greeting and users (newest first)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelloResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createHello",
+        "summary": "Boilerplate demo: store a greeting for the given name and answer \"hello <name>\"",
+        "tags": [
+          "hello"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHelloRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Greeting stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaidHelloResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "code"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "VALIDATION_FAILED",
+              "UNAUTHENTICATED",
+              "INVALID_CREDENTIALS",
+              "FORBIDDEN",
+              "CSRF_INVALID",
+              "NOT_FOUND",
+              "CONFLICT",
+              "RATE_LIMITED",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "firstname",
+          "lastname",
+          "roleName",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "firstname": {
+            "type": "string"
+          },
+          "lastname": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Greeting": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HelloResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "users",
+          "greetings"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "hello"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "greetings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Greeting"
+            }
+          }
+        }
+      },
+      "CreateHelloRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "example": "Ada"
+          }
+        }
+      },
+      "SaidHelloResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "greeting"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "hello Ada"
+          },
+          "greeting": {
+            "$ref": "#/components/schemas/Greeting"
+          }
+        }
+      }
+    },
+    "responses": {
+      "ValidationFailed": {
+        "description": "Request does not match the schema (code VALIDATION_FAILED, details.fields)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}

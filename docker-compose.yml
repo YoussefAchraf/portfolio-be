@@ -1,0 +1,134 @@
+# et-be local stack.
+#   docker compose up -d postgres redis              infra only (run the app with npm run dev)
+#   docker compose --profile dev up backend-dev      hot-reload app in a container (port 4002)
+#   docker compose up -d backend                     production-like image (runs "migrate" first)
+#   docker compose --profile tools up -d pgadmin     pgAdmin on 127.0.0.1:5051
+# Port map: contracts/conventions.md (4000 backend, 4002 backend-dev, 5432 pg, 6379 redis).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-et_be}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-et_be}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}", "--appendonly", "yes", "--maxmemory-policy", "volatile-lru"]
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # One-off: applies Prisma migrations, then exits. "backend" waits for it to succeed.
+  migrate:
+    build:
+      context: .
+      target: build
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-et_be}
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-et_be}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      PORT: 4000
+    ports:
+      - "${PORT:-4000}:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # Hot reload: src/ and prisma/ are bind-mounted. Uses the "<POSTGRES_DB>_dev" database
+  # (created by docker/postgres/init) and Redis DB index 1. Apply dev migrations with
+  # `docker compose --profile dev exec backend-dev npx prisma migrate dev`.
+  backend-dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      target: dev
+    init: true
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-et_be}_dev
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      PORT: 4000
+    ports:
+      - "${DEV_PORT:-4002}:4000"
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  pgadmin:
+    profiles: ["tools"]
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pgadmin.org
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-local-only}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5051}:80"
+    volumes:
+      - ./tools/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  internal:

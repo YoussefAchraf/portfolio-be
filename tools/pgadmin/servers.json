@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "et-be (docker)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "et_be",
+      "Username": "postgres",
+      "SSLMode": "prefer"
+    }
+  }
+}

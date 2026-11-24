@@ -1,0 +1,129 @@
+name: Verify
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-project
+      - run: npm run lint
+
+  boundaries-report:
+    name: boundaries report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-project
+      - name: Architecture boundary violations
+        run: npx eslint . --rule '{"boundaries/dependencies":"error"}' --format json --output-file boundaries-report.json || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: boundaries-report
+          path: boundaries-report.json
+          if-no-files-found: ignore
+
+  docs:
+    name: docs (generated README sections are current)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      # Same script as `npm run docs:check` - fails when docs/ changed but README.md was not regenerated.
+      - run: node scripts/docs-readme.mjs --check
+
+  policy:
+    name: policy (no file-wide lint disables, no .only/.skip tests, no BOM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      # Same script agents run locally (`npm run check:policy`).
+      - run: node scripts/check-policy.mjs
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-project
+      - run: npx tsc --noEmit
+
+  sca:
+    name: sca
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-project
+      - name: npm audit (report only)
+        run: npm audit --omit=dev || true
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: et_be_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-project
+      # Integration/e2e tests need the real schema: apply every committed migration first.
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/et_be_test
+      - run: npm test -- --runInBand
+      - name: Integration tests (real Postgres)
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/et_be_test
+          REDIS_URL: redis://localhost:6379/1
+          JWT_ACCESS_SECRET: ci-test-only-access-secret-32-characters
+          JWT_REFRESH_SECRET: ci-test-only-refresh-secret-32-characters
+          COOKIE_SECURE: 'false'
+          CORS_ORIGINS: http://localhost:3000
+          NODE_ENV: test
+
+  openapi-drift:
+    name: openapi drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-project
+      - name: Check committed spec is not stale
+        run: |
+          npm run docs:export || echo "::warning::scripts/exportSwagger.ts not implemented yet — drift check skipped"
+          if [ -f docs/openapi.json ]; then
+            git diff --exit-code -- docs/openapi.json || (echo "::error::docs/openapi.json is stale — run npm run docs:export and commit" && exit 1)
+          fi

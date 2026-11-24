@@ -1,0 +1,2 @@
+Pure zod schemas for DOMAIN invariants shared by several use cases (<thing>Schema.ts).
+Endpoint payload schemas do NOT go here - they live in src/interface/validation/.

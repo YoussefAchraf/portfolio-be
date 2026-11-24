@@ -1,0 +1,65 @@
+// Prisma schema - the single source of truth for the database structure.
+//
+// Workflow: edit models here -> `npm run db:migrate -- --name <change>` (creates a migration in
+// prisma/migrations and regenerates the client) -> commit schema + migration together.
+// CI / production apply migrations with `npm run db:deploy` (compose service "migrate").
+//
+// Conventions (see docs/architecture.md):
+// - Model names PascalCase singular; map tables/columns to snake_case with @@map / @map.
+// - Every FK indexed; unique constraints in the DB even when the app validates.
+// - Timestamps: DateTime @db.Timestamptz(3), UTC.
+// - Additive migrations first; destructive changes ship in two deploys.
+
+generator client {
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  moduleFormat  = "cjs"                                   // project compiles to CommonJS (tsc + ts-jest)
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]  // Alpine runtime image
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User - baseline table (contracts/domain-model.md "User"). The boilerplate seeds demo rows
+// (npm run db:seed) and GET /v1/hello reads them back.
+// Enums are Postgres enums: the database enforces the same closed sets as src/domain/constants/roles.ts.
+
+enum UserRole {
+  admin
+  member
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  active
+  disabled
+
+  @@map("user_status")
+}
+
+model User {
+  id           String     @id @db.Uuid
+  email        String     @unique @db.VarChar(254) // stored lowercase by the User entity
+  passwordHash String     @map("password_hash")
+  firstname    String     @db.VarChar(100)
+  lastname     String     @db.VarChar(100)
+  roleName     UserRole   @default(member) @map("role_name")
+  status       UserStatus @default(active)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([createdAt(sort: Desc)]) // listRecent() reads newest first
+  @@map("users")
+}
+
+// Greeting - what the hello page stores: POST /v1/hello { name } inserts a row, GET /v1/hello lists them.
+model Greeting {
+  id        String   @id @db.Uuid
+  name      String   @db.VarChar(60)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt(sort: Desc)]) // listRecent() reads newest first
+  @@map("greetings")
+}

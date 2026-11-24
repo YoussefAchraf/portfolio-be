@@ -1,0 +1,93 @@
+name: Docker build and scan
+on:
+  workflow_call:
+    inputs:
+      push:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build-and-scan:
+    name: build-and-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      # Tags: sha-<short> always; latest on main (the release branch - NOT the default branch, which is dev); vX.Y.Z on git tags.
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+
+      - name: Build image (runtime target)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          target: runtime
+          push: false
+          load: true
+          tags: et-be:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true # a cache outage (HTTP 503 seen 2026-11-24) must not fail the build
+
+      - name: Scan image (fails on fixable CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: et-be:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Login to GHCR
+        if: ${{ inputs.push }}
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Re-uses the GHA layer cache from the build step above (no full rebuild).
+      - name: Push image
+        id: push
+        if: ${{ inputs.push }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+
+      # Continuous deployment: ask Render to deploy EXACTLY the image that was just built, scanned and pushed
+      # (pinned by digest, not the moving `latest` tag). The deploy hook can only trigger this one service.
+      # Secret RENDER_DEPLOY_HOOK_URL (Render dashboard > service > Settings > Deploy Hook) is set by
+      # terraform/tf-etbe; without it this step only prints a notice.
+      - name: Deploy to Render
+        if: ${{ inputs.push }}
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_URL is not set - Render was not redeployed (deploy manually or set the secret)."
+            exit 0
+          fi
+          image="ghcr.io/${GITHUB_REPOSITORY,,}@${DIGEST}"
+          encoded=$(printf '%s' "$image" | jq -sRr @uri)
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${HOOK}&imgURL=${encoded}")
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "::error::Render deploy hook answered HTTP $status"
+            exit 1
+          fi
+          echo "Render deploy triggered for $image"

@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- (001) Bilingual public profile endpoint and singleton placeholder seed.
+
 ### Security
 - Security hardening: GitHub Actions pinned to commit SHAs; README table escaping fixed (CodeQL); SECURITY.md; squash merges into dev. effect 3.22.5 + minimatch 11 overrides; typecheck generates the Prisma client first (fresh clones).
 

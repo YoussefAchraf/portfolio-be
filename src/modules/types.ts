@@ -15,6 +15,7 @@ import type { IGreetingRepository } from '../domain/interfaces/IGreetingReposito
 import type { IIdGenerator } from '../domain/interfaces/IIdGenerator';
 import type { ILogger } from '../domain/interfaces/ILogger';
 import type { IPasswordHasher } from '../domain/interfaces/IPasswordHasher';
+import type { IProfileReadRepository } from '../domain/interfaces/IProfileReadRepository';
 import type { IReadinessProbe } from '../domain/interfaces/IReadinessProbe';
 import type { IUserReadRepository } from '../domain/interfaces/IUserReadRepository';
 import type { IUserRepository } from '../domain/interfaces/IUserRepository';
@@ -24,6 +25,7 @@ export interface IRepositories {
   userReads: IUserReadRepository;
   greetings: IGreetingRepository;
   greetingReads: IGreetingReadRepository;
+  profileReads: IProfileReadRepository;
 }
 
 export interface ISharedDependencies {

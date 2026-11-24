@@ -55,6 +55,19 @@ model User {
 }
 
 // Greeting - what the hello page stores: POST /v1/hello { name } inserts a row, GET /v1/hello lists them.
+model Profile {
+  id          Int     @id
+  name        String  @db.VarChar(120)
+  email       String  @db.VarChar(254)
+  github      String
+  linkedin    String
+  en          Json
+  fr          Json
+  placeholder Boolean @default(true)
+
+  @@map("profiles")
+}
+
 model Greeting {
   id        String   @id @db.Uuid
   name      String   @db.VarChar(60)

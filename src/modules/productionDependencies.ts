@@ -12,6 +12,7 @@ import type { IDatabase } from '../infrastructure/database/prismaClient';
 import { createDatabase } from '../infrastructure/database/prismaClient';
 import { PgGreetingReadRepository } from '../infrastructure/repositories/PgGreetingReadRepository';
 import { PgGreetingRepository } from '../infrastructure/repositories/PgGreetingRepository';
+import { PgProfileReadRepository } from '../infrastructure/repositories/PgProfileReadRepository';
 import { PgUserReadRepository } from '../infrastructure/repositories/PgUserReadRepository';
 import { PgUserRepository } from '../infrastructure/repositories/PgUserRepository';
 import { BcryptPasswordHasher } from '../infrastructure/security/BcryptPasswordHasher';
@@ -36,6 +37,7 @@ export function createProductionDependencies(config: IAppConfig): IProductionDep
       userReads: new PgUserReadRepository(database.prisma),
       greetings: new PgGreetingRepository(database.prisma),
       greetingReads: new PgGreetingReadRepository(database.prisma),
+      profileReads: new PgProfileReadRepository(database.prisma),
     },
     probes: [database.probe],
   };

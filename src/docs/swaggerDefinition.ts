@@ -6,6 +6,7 @@
  *          check only fails on real changes.
  */
 import { helloPaths, helloSchemas } from './helloDocs';
+import { profilePaths, profileSchemas } from './profileDocs';
 
 const ERROR_CODE_VALUES = [
   'VALIDATION_FAILED',
@@ -25,6 +26,7 @@ export const swaggerSpec = {
   servers: [{ url: '/v1', description: 'Versioned API base path (same convention as contracts/openapi)' }],
   paths: {
     ...helloPaths,
+    ...profilePaths,
   },
   components: {
     schemas: {
@@ -38,6 +40,7 @@ export const swaggerSpec = {
         },
       },
       ...helloSchemas,
+      ...profileSchemas,
     },
     responses: {
       ValidationFailed: {

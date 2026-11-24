@@ -52,6 +52,7 @@ et-be is the backend of the fs-reustemp full-stack workspace. It exposes a versi
 | Feature | Status | Since | Summary | Endpoints |
 |---|---|---|---|---|
 | [Hello (boilerplate demo)](docs/features/hello.md) | released | - | Hello template - POST a name (stored in Postgres, answers "hello <name>"), GET recent greetings and seeded users. | `GET /v1/hello`<br>`POST /v1/hello` |
+| [Public profile](docs/features/profile.md) | in-progress | - | Read the singleton public profile in English or French. | `GET /v1/profile` |
 | [Authentication](docs/features/auth.md) | planned | - | Email + password sign-in with httpOnly cookie sessions, rotating refresh tokens, reuse detection and double-submit CSRF. | `POST /v1/auth/login`<br>`POST /v1/auth/refresh`<br>`POST /v1/auth/logout`<br>`GET /v1/auth/whoami` |
 
 <!-- AUTO-GENERATED:FEATURES:END -->
@@ -67,6 +68,7 @@ Feature pages: [docs/features/](docs/features/). Release history: [CHANGELOG.md]
 |---|---|---|---|---|
 | GET | `/v1/hello` | Boilerplate demo: greeting plus the most recent users read from the database | public | `showHello` |
 | POST | `/v1/hello` | Boilerplate demo: store a greeting for the given name and answer "hello <name>" | public | `createHello` |
+| GET | `/v1/profile` | Read the public profile and current CV | public | `getPublicProfile` |
 
 <!-- AUTO-GENERATED:API:END -->
 
@@ -81,6 +83,8 @@ lists use cursor pagination `{ "items": [], "nextCursor": string | null }`.
 
 **Unreleased (merged into dev)**
 
+_Added_
+- (001) Bilingual public profile endpoint and singleton placeholder seed.
 _Security_
 - Security hardening: GitHub Actions pinned to commit SHAs; README table escaping fixed (CodeQL); SECURITY.md; squash merges into dev. effect 3.22.5 + minimatch 11 overrides; typecheck generates the Prisma client first (fresh clones).
 _Changed_

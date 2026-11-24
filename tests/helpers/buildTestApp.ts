@@ -29,7 +29,7 @@ export function buildTestApp(options: { demoRoutes?: boolean } = {}): ITestApp {
     clock,
     ids: new SequenceIds(),
     hasher: fakeHasher,
-    repositories: { users: store, userReads: store, greetings, greetingReads: greetings },
+    repositories: { users: store, userReads: store, greetings, greetingReads: greetings, profileReads: { getPublicProfile: async () => null } },
     probes: [probe],
   };
   const app = buildApp(deps, {

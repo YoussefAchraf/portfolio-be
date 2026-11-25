@@ -83,6 +83,7 @@ lists use cursor pagination `{ "items": [], "nextCursor": string | null }`.
 
 **Unreleased (merged into dev)**
 
+- (001) Task 001b updates the bilingual portfolio home and design system.
 _Added_
 - (001) Bilingual public profile endpoint and singleton placeholder seed.
 _Security_

@@ -9,6 +9,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- (001) Task 001b updates the bilingual portfolio home and design system.
+
 ### Added
 - (001) Bilingual public profile endpoint and singleton placeholder seed.
 
